@@ -1,31 +1,49 @@
 # Docker Compose description of the combined application.
 #
 # 'docker-compose up' will run this.
-version: '3'  # requires Docker Compose 1.13 or later
-
-# This section describes the various containers (services).
+version: '3'
+volumes:
+  picamera:
 services:
   
   rabbitmq:
-    # There is a prebuilt RabbitMQ image; see
-    # https://hub.docker.com/_/rabbitmq/ for details.
-    # This variant is built on Alpine Linux (it's smaller) and includes
-    # the management UI.
     image: 'rabbitmq:3.9-management-alpine'
-
     ports:
       # The standard AMQP protocol port
       - '5672:5672'
       # HTTP management UI
       - '15672:15672'
+    # networks:
+    #   - network
 
-    # Run this container on a private network for this application.
-    # This is necessary for magic Docker DNS to work: other containers
-    # also running on this network will see a host name "rabbitmq"
-    # (the name of this section) and the internal port 5672, even though
-    # that's not explicitly published above.
-    networks:
-      - network
+  camera:
+    build: 
+      context: './src/modules/lowLevel/camera'
+      dockerfile: Dockerfile
+    ports:
+      - '5000:5000'
+    volumes:
+      - /opt/vc:/opt/vc
+    environment:
+      - LD_LIBRARY_PATH=/opt/vc/lib
+    devices:
+      - /dev/video0:/dev/video0
+      - /dev/vchiq:/dev/vchiq
+    privileged: true
+
+
+    # networks:
+    #   - network
+
+  sensors:
+    build: 
+      context: './src/modules/lowLevel/sensors'
+      dockerfile: sensors.Dockerfile
+    ports:
+      - '5001:5001'
+
+    # networks:
+    #   - network
 
 
   # consumer:
@@ -53,5 +71,6 @@ services:
   #   networks:
   #     - network
 
-networks:
-  network: {}
+
+# networks:
+#   network: {}
